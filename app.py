@@ -1,22 +1,36 @@
-"""
-Secure Message System - Flask Backend
-Proje: Güvenli Mesajlaşma Sistemi (Secure Coding & Scripting Languages)
-Ekip: Mustafa Özcan, Mehmet Okur, Mehmet Arhan Efe, Türkay Aydoğan
-"""
-
 import os
 import re
 import logging
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import firebase_admin
 from firebase_admin import credentials, firestore
 from google.cloud.firestore import SERVER_TIMESTAMP
 import bcrypt
 from cryptography.fernet import Fernet
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+# ============= ENVIRONMENT VARIABLES CHECK =============
+# Critical: Fail fast if required environment variables are not set
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    raise ValueError(
+        "CRITICAL: SECRET_KEY environment variable is not set!\n"
+        "Please create a .env file with SECRET_KEY."
+    )
+
+ENCRYPTION_KEY_STR = os.environ.get('ENCRYPTION_KEY')
+if not ENCRYPTION_KEY_STR:
+    raise ValueError(
+        "CRITICAL: ENCRYPTION_KEY environment variable is not set!\n"
+        "Please create a .env file with ENCRYPTION_KEY."
+    )
 
 # ============= FLASK UYGULAMASI =============
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'development-secret-key-change-in-production')
+app.secret_key = SECRET_KEY
 
 # ============= LOGGING =============
 logging.basicConfig(
@@ -31,7 +45,6 @@ try:
         cred = credentials.Certificate("serviceAccountKey.json")
         firebase_admin.initialize_app(cred)
     db = firestore.client()
-    print("✓ Firebase/Firestore bağlantısı başarılı")
     logging.info("Firebase baglantisi basarili")
 except Exception as e:
     print(f"✗ Firebase başlatma hatası: {e}")
@@ -39,9 +52,12 @@ except Exception as e:
     raise
 
 # ============= ŞİFRELEME ANAHTARI =============
-# Production'da environment variable kullanılmalı!
-ENCRYPTION_KEY = b'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8S9t0U1v='
-cipher_suite = Fernet(ENCRYPTION_KEY)
+# Encode encryption key (already validated above)
+try:
+    ENCRYPTION_KEY = ENCRYPTION_KEY_STR.encode('utf-8')
+    cipher_suite = Fernet(ENCRYPTION_KEY)
+except Exception as e:
+    raise ValueError(f"CRITICAL: Invalid ENCRYPTION_KEY format: {e}")
 
 # ============= GÜVENLİK FONKSİYONLARI =============
 
@@ -249,7 +265,6 @@ def dashboard():
     username = session['username']
     
     try:
-        # Gelen mesajları çek (order_by kaldırıldı - Firestore index gerektiriyor)
         from google.cloud.firestore_v1.base_query import FieldFilter
         messages_ref = db.collection('messages')
         incoming_messages = messages_ref.where(
@@ -263,14 +278,21 @@ def dashboard():
             timestamp = msg_data.get('timestamp')
             if timestamp:
                 timestamp_str = timestamp.strftime("%d.%m.%Y %H:%M")
+                timestamp_sort = timestamp  # Sıralama için
             else:
                 timestamp_str = "Tarih yok"
+                timestamp_sort = None
             
             messages.append({
+                'id': doc.id,  # Mesaj ID'si (silme için gerekli)
                 'sender': msg_data.get('sender', 'Bilinmeyen'),
                 'content': decrypt_message(msg_data.get('encrypted_content', '')),
-                'timestamp': timestamp_str
+                'timestamp': timestamp_str,
+                'timestamp_sort': timestamp_sort
             })
+        
+        # Mesajları tarihe göre sırala (en yeniden eskiye)
+        messages.sort(key=lambda x: x['timestamp_sort'] if x['timestamp_sort'] else 0, reverse=True)
         
         return render_template('dashboard.html', username=username, messages=messages)
         
@@ -324,6 +346,39 @@ def send_message():
         flash(f'Mesaj gönderilemedi: {str(e)}', 'error')
         logging.error(f"Send message error: {e}")
         return redirect(url_for('dashboard'))
+
+@app.route('/delete_message/<message_id>', methods=['POST'])
+def delete_message(message_id):
+    """Mesaj sil"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'error': 'Oturum geçersiz'}), 401
+    
+    username = session['username']
+    
+    try:
+        # Mesajı bul
+        message_ref = db.collection('messages').document(message_id)
+        message_doc = message_ref.get()
+        
+        if not message_doc.exists:
+            return jsonify({'success': False, 'error': 'Mesaj bulunamadı'}), 404
+        
+        message_data = message_doc.to_dict()
+        
+        # Sadece alıcı kendi mesajlarını silebilir (güvenlik kontrolü)
+        if message_data.get('receiver') != username:
+            logging.warning(f"Yetkisiz silme denemesi: {username} -> {message_id}")
+            return jsonify({'success': False, 'error': 'Bu mesajı silme yetkiniz yok'}), 403
+        
+        # Mesajı sil
+        message_ref.delete()
+        
+        logging.info(f"Mesaj silindi: {username} -> {message_id}")
+        return jsonify({'success': True, 'message': 'Mesaj başarıyla silindi'})
+        
+    except Exception as e:
+        logging.error(f"Delete message error: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # ============= UYGULAMA BAŞLATMA =============
 

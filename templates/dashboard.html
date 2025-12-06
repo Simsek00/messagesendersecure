@@ -73,10 +73,15 @@
                 {% if messages %}
                     <div class="messages-list">
                         {% for msg in messages %}
-                            <div class="message-item">
+                            <div class="message-item" id="message-{{ msg.id }}">
                                 <div class="message-header">
                                     <span class="message-sender">👤 {{ msg.sender }}</span>
-                                    <span class="message-time">{{ msg.timestamp }}</span>
+                                    <div class="message-actions">
+                                        <span class="message-time">{{ msg.timestamp }}</span>
+                                        <button class="btn-delete" onclick="showDeleteModal('{{ msg.id }}', '{{ msg.sender }}')">
+                                            🗑️ Sil
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="message-body">
                                     <p>{{ msg.content }}</p>
@@ -102,6 +107,90 @@
             <p><small>Mustafa Özcan, Mehmet Okur, Mehmet Arhan Efe, Türkay Aydoğan</small></p>
         </footer>
     </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <h2>⚠️ Mesajı Sil</h2>
+            <p>Bu mesajı silmek istediğinizden emin misiniz?</p>
+            <p class="modal-message-info">
+                <strong>Gönderen:</strong> <span id="modal-sender"></span><br>
+                Bu işlem geri alınamaz!
+            </p>
+            <div class="modal-actions">
+                <button class="btn btn-cancel" onclick="closeDeleteModal()">İptal</button>
+                <button class="btn btn-delete-confirm" onclick="confirmDelete()">Evet, Sil</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let messageIdToDelete = null;
+
+        function showDeleteModal(messageId, sender) {
+            messageIdToDelete = messageId;
+            document.getElementById('modal-sender').textContent = sender;
+            document.getElementById('deleteModal').style.display = 'flex';
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').style.display = 'none';
+            messageIdToDelete = null;
+        }
+
+        function confirmDelete() {
+            if (!messageIdToDelete) return;
+
+            fetch(`/delete_message/${messageIdToDelete}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Mesajı DOM'dan kaldır
+                    const messageElement = document.getElementById(`message-${messageIdToDelete}`);
+                    if (messageElement) {
+                        messageElement.style.animation = 'fadeOut 0.3s ease';
+                        setTimeout(() => {
+                            messageElement.remove();
+                            
+                            // Eğer hiç mesaj kalmadıysa empty state göster
+                            const messagesList = document.querySelector('.messages-list');
+                            if (messagesList && messagesList.children.length === 0) {
+                                location.reload();
+                            }
+                        }, 300);
+                    }
+                    closeDeleteModal();
+                } else {
+                    alert('Hata: ' + data.error);
+                    closeDeleteModal();
+                }
+            })
+            .catch(error => {
+                alert('Mesaj silinirken bir hata oluştu: ' + error);
+                closeDeleteModal();
+            });
+        }
+
+        // Modal dışına tıklanırsa kapat
+        window.onclick = function(event) {
+            const modal = document.getElementById('deleteModal');
+            if (event.target === modal) {
+                closeDeleteModal();
+            }
+        }
+
+        // ESC tuşu ile modal'ı kapat
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeDeleteModal();
+            }
+        });
+    </script>
 </body>
 </html>
 
