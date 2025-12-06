@@ -1,33 +1,62 @@
 <!DOCTYPE html>
-<html>
+<html lang="tr">
 <head>
-    <title>Giriş Yap - Güvenli Mesajlaşma</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giriş Yap - Secure Message System</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <h2>Sisteme Giriş</h2>
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert {{ category }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-
-        <form action="/login" method="POST">
-            <div class="form-group">
-                <label>Kullanıcı Adı</label>
-                <input type="text" name="username" required>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1>🔒 Secure Message System</h1>
+                <p>Güvenli Mesajlaşma</p>
             </div>
-            <div class="form-group">
-                <label>Şifre</label>
-                <input type="password" name="password" required>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" action="/login" class="auth-form">
+                <div class="form-group">
+                    <label for="username">Kullanıcı Adı</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        placeholder="Kullanıcı adınızı girin"
+                        required 
+                        autofocus
+                        pattern="[a-zA-Z0-9_]{3,20}"
+                        title="3-20 karakter, sadece harf, rakam ve _">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Şifre</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        placeholder="Şifrenizi girin"
+                        required
+                        minlength="6">
+                </div>
+
+                <button type="submit" class="btn btn-primary">Giriş Yap</button>
+            </form>
+
+            <div class="auth-footer">
+                <p>Hesabınız yok mu? <a href="/register">Kayıt Olun</a></p>
             </div>
-            <button type="submit" class="btn">Giriş Yap</button>
-        </form>
-        <a href="/register" class="link">Hesabın yok mu? Kayıt Ol</a>
+        </div>
     </div>
 </body>
 </html>
+

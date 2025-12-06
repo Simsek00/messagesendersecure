@@ -1,33 +1,64 @@
 <!DOCTYPE html>
-<html>
+<html lang="tr">
 <head>
-    <title>Kayıt Ol - Güvenli Mesajlaşma</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kayıt Ol - Secure Message System</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <h2>Yeni Hesap Oluştur</h2>
-        
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert {{ category }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1>🔒 Secure Message System</h1>
+                <p>Yeni Hesap Oluştur</p>
+            </div>
 
-        <form action="/register" method="POST">
-            <div class="form-group">
-                <label>Kullanıcı Adı</label>
-                <input type="text" name="username" required>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" action="/register" class="auth-form">
+                <div class="form-group">
+                    <label for="username">Kullanıcı Adı</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        placeholder="3-20 karakter (harf, rakam, _)"
+                        required 
+                        autofocus
+                        pattern="[a-zA-Z0-9_]{3,20}"
+                        title="3-20 karakter, sadece harf, rakam ve _">
+                    <small>Sadece harf, rakam ve alt çizgi (_) kullanabilirsiniz</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Şifre</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        placeholder="Minimum 6 karakter"
+                        required
+                        minlength="6">
+                    <small>Güçlü bir şifre seçin (en az 6 karakter)</small>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Kayıt Ol</button>
+            </form>
+
+            <div class="auth-footer">
+                <p>Zaten hesabınız var mı? <a href="/">Giriş Yapın</a></p>
             </div>
-            <div class="form-group">
-                <label>Şifre</label>
-                <input type="password" name="password" required>
-            </div>
-            <button type="submit" class="btn">Kayıt Ol</button>
-        </form>
-        <a href="/" class="link">Zaten hesabın var mı? Giriş Yap</a>
+        </div>
     </div>
 </body>
 </html>
+

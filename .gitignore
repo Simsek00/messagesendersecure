@@ -1,4 +1,37 @@
-serviceAccountKey.json
-venv/
+# Python
 __pycache__/
-*.log
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+
+# Flask
+instance/
+.webassets-cache
+app.log
+
+# Firebase
+serviceAccountKey.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.local
+
+# Node (if used)
+node_modules/
+package-lock.json

@@ -1,53 +1,107 @@
 <!DOCTYPE html>
-<html>
+<html lang="tr">
 <head>
-    <title>Mesaj Kutusu</title>
-    <style>
-        body { font-family: sans-serif; padding: 20px; background-color: #e9ecef; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
-        .message-box { border: 1px solid #ccc; padding: 15px; margin-top: 10px; border-radius: 5px; background: #f9f9f9; }
-        .form-group { margin-top: 20px; background: #eee; padding: 15px; border-radius: 5px; }
-        input, textarea { width: 95%; padding: 10px; margin: 5px 0; border: 1px solid #ccc; border-radius: 4px; }
-        button { background: #28a745; color: white; padding: 10px 20px; border: none; cursor: pointer; }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Secure Message System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>Merhaba, {{ username }}</h1>
-            <a href="/logout" style="color: red; text-decoration: none;">Çıkış Yap</a>
-        </div>
+<body class="dashboard-body">
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="header-left">
+                <h1>🔒 Secure Messages</h1>
+                <p class="username-display">Hoş geldin, <strong>{{ username }}</strong></p>
+            </div>
+            <div class="header-right">
+                <a href="/logout" class="btn btn-logout">Çıkış Yap</a>
+            </div>
+        </header>
 
-        {% with messages = get_flashed_messages() %}
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                <div style="background: #d4edda; color: #155724; padding: 10px; margin-top: 10px;">
-                    {{ messages[0] }}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
                 </div>
             {% endif %}
         {% endwith %}
 
-        <div class="form-group">
-            <h3>Yeni Şifreli Mesaj Gönder</h3>
-            <form action="/send" method="POST">
-                <input type="text" name="alici" placeholder="Alıcının Kullanıcı Adı (Örn: Mustafa)" required>
-                <textarea name="mesaj" rows="3" placeholder="Mesajınız..." required></textarea>
-                <button type="submit">Şifrele ve Gönder 🔒</button>
-            </form>
+        <!-- Main Content -->
+        <div class="dashboard-content">
+            <!-- Send Message Section -->
+            <div class="card send-card">
+                <h2>📤 Yeni Mesaj Gönder</h2>
+                <form method="POST" action="/send" class="send-form">
+                    <div class="form-group">
+                        <label for="receiver">Alıcı Kullanıcı Adı</label>
+                        <input 
+                            type="text" 
+                            id="receiver" 
+                            name="receiver" 
+                            placeholder="Örn: mehmet"
+                            required
+                            pattern="[a-zA-Z0-9_]{3,20}"
+                            title="3-20 karakter, sadece harf, rakam ve _">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="message">Mesajınız</label>
+                        <textarea 
+                            id="message" 
+                            name="message" 
+                            rows="4" 
+                            placeholder="Mesajınızı yazın (max 5000 karakter)"
+                            required
+                            maxlength="5000"></textarea>
+                        <small>⚠️ Mesajınız AES şifreleme ile korunacaktır</small>
+                    </div>
+
+                    <button type="submit" class="btn btn-send">🔐 Şifrele ve Gönder</button>
+                </form>
+            </div>
+
+            <!-- Inbox Section -->
+            <div class="card inbox-card">
+                <h2>📬 Gelen Kutusu</h2>
+                
+                {% if messages %}
+                    <div class="messages-list">
+                        {% for msg in messages %}
+                            <div class="message-item">
+                                <div class="message-header">
+                                    <span class="message-sender">👤 {{ msg.sender }}</span>
+                                    <span class="message-time">{{ msg.timestamp }}</span>
+                                </div>
+                                <div class="message-body">
+                                    <p>{{ msg.content }}</p>
+                                </div>
+                                <div class="message-footer">
+                                    <small>🔓 Veritabanında şifreli olarak saklanıyor</small>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <p>📭 Henüz gelen mesajınız yok.</p>
+                        <small>Başkalarından mesaj geldiğinde burada görünecek.</small>
+                    </div>
+                {% endif %}
+            </div>
         </div>
 
-        <h3>Gelen Kutusu</h3>
-        {% for msg in mesajlar %}
-            <div class="message-box">
-                <strong>Gönderen:</strong> {{ msg.gonderen }} <br>
-                <small>Tarih: {{ msg.tarih }}</small>
-                <hr>
-                <p><strong>Mesaj:</strong> {{ msg.icerik }}</p>
-                <small style="color: gray;">(Bu mesaj veritabanında şifreli saklanıyor)</small>
-            </div>
-        {% else %}
-            <p>Henüz gelen mesajınız yok.</p>
-        {% endfor %}
+        <!-- Footer -->
+        <footer class="dashboard-footer">
+            <p>🛡️ Secure Coding & Scripting Languages Project</p>
+            <p><small>Mustafa Özcan, Mehmet Okur, Mehmet Arhan Efe, Türkay Aydoğan</small></p>
+        </footer>
     </div>
 </body>
 </html>
+
