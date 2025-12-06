@@ -12,3 +12,6 @@ bcrypt==5.0.0
 
 # Google Cloud Firestore (required for SERVER_TIMESTAMP)
 google-cloud-firestore==2.21.0
+
+# Environment Variables Management
+python-dotenv==1.0.0
