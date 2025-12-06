@@ -380,6 +380,175 @@ def delete_message(message_id):
         logging.error(f"Delete message error: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/profile')
+def profile():
+    """Kullanıcı profil sayfası"""
+    if 'username' not in session:
+        return redirect(url_for('index'))
+    
+    username = session['username']
+    
+    try:
+        # Kullanıcı bilgilerini çek
+        from google.cloud.firestore_v1.base_query import FieldFilter
+        users_ref = db.collection('users')
+        user_docs = users_ref.where(
+            filter=FieldFilter('username', '==', username)
+        ).limit(1).get()
+        
+        if not user_docs:
+            flash('Kullanıcı bulunamadı!', 'error')
+            return redirect(url_for('dashboard'))
+        
+        user_data = user_docs[0].to_dict()
+        user_id = user_docs[0].id
+        
+        # Kayıt tarihini formatla
+        created_at = user_data.get('created_at')
+        if created_at:
+            created_at_str = created_at.strftime("%d %B %Y, %H:%M")
+        else:
+            created_at_str = "Bilinmiyor"
+        
+        # Mesaj istatistiklerini çek
+        sent_messages = db.collection('messages').where(
+            filter=FieldFilter('sender', '==', username)
+        ).get()
+        
+        received_messages = db.collection('messages').where(
+            filter=FieldFilter('receiver', '==', username)
+        ).get()
+        
+        profile_data = {
+            'username': username,
+            'user_id': user_id,
+            'created_at': created_at_str,
+            'sent_count': len(sent_messages),
+            'received_count': len(received_messages)
+        }
+        
+        return render_template('profile.html', user=profile_data)
+        
+    except Exception as e:
+        flash(f'Profil yüklenemedi: {str(e)}', 'error')
+        logging.error(f"Profile error: {e}")
+        return redirect(url_for('dashboard'))
+
+@app.route('/change_password', methods=['POST'])
+def change_password():
+    """Şifre değiştir"""
+    if 'username' not in session:
+        return redirect(url_for('index'))
+    
+    username = session['username']
+    current_password = request.form.get('current_password', '')
+    new_password = request.form.get('new_password', '')
+    confirm_password = request.form.get('confirm_password', '')
+    
+    try:
+        # Input validation
+        is_valid_new, msg_new = validate_password(new_password)
+        if not is_valid_new:
+            flash(f'Yeni şifre geçersiz: {msg_new}', 'error')
+            return redirect(url_for('profile'))
+        
+        if new_password != confirm_password:
+            flash('Yeni şifreler eşleşmiyor!', 'error')
+            return redirect(url_for('profile'))
+        
+        # Kullanıcıyı bul
+        from google.cloud.firestore_v1.base_query import FieldFilter
+        users_ref = db.collection('users')
+        user_docs = users_ref.where(
+            filter=FieldFilter('username', '==', username)
+        ).limit(1).get()
+        
+        if not user_docs:
+            flash('Kullanıcı bulunamadı!', 'error')
+            return redirect(url_for('profile'))
+        
+        user_data = user_docs[0].to_dict()
+        user_doc_ref = user_docs[0].reference
+        
+        # Mevcut şifreyi doğrula
+        if not verify_password(current_password, user_data['password']):
+            flash('Mevcut şifreniz yanlış!', 'error')
+            logging.warning(f"Basarisiz sifre degistirme: {username}")
+            return redirect(url_for('profile'))
+        
+        # Yeni şifreyi hashle ve güncelle
+        new_hashed_password = hash_password(new_password)
+        user_doc_ref.update({'password': new_hashed_password})
+        
+        flash('Şifreniz başarıyla değiştirildi!', 'success')
+        logging.info(f"Sifre degistirildi: {username}")
+        return redirect(url_for('profile'))
+        
+    except Exception as e:
+        flash(f'Şifre değiştirilemedi: {str(e)}', 'error')
+        logging.error(f"Change password error: {e}")
+        return redirect(url_for('profile'))
+
+@app.route('/delete_account', methods=['POST'])
+def delete_account():
+    """Hesabı sil (opsiyonel özellik)"""
+    if 'username' not in session:
+        return redirect(url_for('index'))
+    
+    username = session['username']
+    password = request.form.get('confirm_password', '')
+    
+    try:
+        # Kullanıcıyı bul
+        from google.cloud.firestore_v1.base_query import FieldFilter
+        users_ref = db.collection('users')
+        user_docs = users_ref.where(
+            filter=FieldFilter('username', '==', username)
+        ).limit(1).get()
+        
+        if not user_docs:
+            flash('Kullanıcı bulunamadı!', 'error')
+            return redirect(url_for('profile'))
+        
+        user_data = user_docs[0].to_dict()
+        user_doc_ref = user_docs[0].reference
+        
+        # Şifre doğrulama (güvenlik için)
+        if not verify_password(password, user_data['password']):
+            flash('Şifre yanlış! Hesap silinmedi.', 'error')
+            logging.warning(f"Basarisiz hesap silme denemesi: {username}")
+            return redirect(url_for('profile'))
+        
+        # Kullanıcının tüm mesajlarını sil
+        # Gönderilen mesajlar
+        sent_messages = db.collection('messages').where(
+            filter=FieldFilter('sender', '==', username)
+        ).get()
+        for msg in sent_messages:
+            msg.reference.delete()
+        
+        # Alınan mesajlar
+        received_messages = db.collection('messages').where(
+            filter=FieldFilter('receiver', '==', username)
+        ).get()
+        for msg in received_messages:
+            msg.reference.delete()
+        
+        # Kullanıcıyı sil
+        user_doc_ref.delete()
+        
+        # Oturumu kapat
+        session.pop('username', None)
+        
+        flash('Hesabınız ve tüm mesajlarınız başarıyla silindi.', 'success')
+        logging.info(f"Hesap silindi: {username}")
+        return redirect(url_for('index'))
+        
+    except Exception as e:
+        flash(f'Hesap silinemedi: {str(e)}', 'error')
+        logging.error(f"Delete account error: {e}")
+        return redirect(url_for('profile'))
+
 # ============= UYGULAMA BAŞLATMA =============
 
 if __name__ == '__main__':

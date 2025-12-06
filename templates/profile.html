@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profil - Secure Message System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="dashboard-body">
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="header-left">
+                <h1>👤 Profil Ayarları</h1>
+                <p class="username-display"><strong>{{ user.username }}</strong></p>
+            </div>
+            <div class="header-right">
+                <a href="/dashboard" class="btn btn-secondary">← Dashboard'a Dön</a>
+                <a href="/logout" class="btn btn-logout">Çıkış Yap</a>
+            </div>
+        </header>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Main Content -->
+        <div class="profile-content">
+            <!-- User Information Card -->
+            <div class="card profile-info-card">
+                <h2>📋 Hesap Bilgileri</h2>
+                
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">👤 Kullanıcı Adı:</span>
+                        <span class="info-value">{{ user.username }}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">📅 Kayıt Tarihi:</span>
+                        <span class="info-value">{{ user.created_at }}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">📤 Gönderilen Mesaj:</span>
+                        <span class="info-value">{{ user.sent_count }}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">📥 Alınan Mesaj:</span>
+                        <span class="info-value">{{ user.received_count }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Change Password Card -->
+            <div class="card change-password-card">
+                <h2>🔑 Şifre Değiştir</h2>
+                
+                <form method="POST" action="/change_password" class="profile-form">
+                    <div class="form-group">
+                        <label for="current_password">Mevcut Şifre</label>
+                        <input 
+                            type="password" 
+                            id="current_password" 
+                            name="current_password" 
+                            placeholder="Mevcut şifrenizi girin"
+                            required
+                            minlength="6">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="new_password">Yeni Şifre</label>
+                        <input 
+                            type="password" 
+                            id="new_password" 
+                            name="new_password" 
+                            placeholder="Yeni şifrenizi girin"
+                            required
+                            minlength="6">
+                        <small>Minimum 6 karakter (güçlü şifre kullanın)</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="confirm_password">Yeni Şifre (Tekrar)</label>
+                        <input 
+                            type="password" 
+                            id="confirm_password" 
+                            name="confirm_password" 
+                            placeholder="Yeni şifrenizi tekrar girin"
+                            required
+                            minlength="6">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">🔐 Şifreyi Değiştir</button>
+                </form>
+            </div>
+
+            <!-- Danger Zone Card -->
+            <div class="card danger-zone-card">
+                <h2>⚠️ Tehlikeli Bölge</h2>
+                <p class="danger-warning">
+                    Bu işlem geri alınamaz! Hesabınız ve tüm mesajlarınız kalıcı olarak silinecektir.
+                </p>
+                
+                <button class="btn btn-danger" onclick="showDeleteAccountModal()">
+                    🗑️ Hesabı Kalıcı Olarak Sil
+                </button>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="dashboard-footer">
+            <p>🛡️ Secure Coding & Scripting Languages Project</p>
+            <p><small>Mustafa Özcan, Mehmet Okur, Mehmet Arhan Efe, Türkay Aydoğan</small></p>
+        </footer>
+    </div>
+
+    <!-- Delete Account Confirmation Modal -->
+    <div id="deleteAccountModal" class="modal">
+        <div class="modal-content">
+            <h2>🚨 Hesabı Sil</h2>
+            <p class="danger-text">
+                <strong>DİKKAT!</strong> Bu işlem geri alınamaz!
+            </p>
+            <p>
+                Hesabınızı silmek istediğinizden emin misiniz?<br>
+                Tüm mesajlarınız ve kullanıcı bilgileriniz kalıcı olarak silinecektir.
+            </p>
+            
+            <form method="POST" action="/delete_account" id="deleteAccountForm">
+                <div class="form-group">
+                    <label for="confirm_password_delete">Şifrenizi Girin (Onay İçin)</label>
+                    <input 
+                        type="password" 
+                        id="confirm_password_delete" 
+                        name="confirm_password" 
+                        placeholder="Şifrenizi girin"
+                        required>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-cancel" onclick="closeDeleteAccountModal()">
+                        İptal
+                    </button>
+                    <button type="submit" class="btn btn-danger">
+                        Evet, Hesabımı Sil
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function showDeleteAccountModal() {
+            document.getElementById('deleteAccountModal').style.display = 'flex';
+        }
+
+        function closeDeleteAccountModal() {
+            document.getElementById('deleteAccountModal').style.display = 'none';
+            document.getElementById('deleteAccountForm').reset();
+        }
+
+        // Modal dışına tıklanırsa kapat
+        window.onclick = function(event) {
+            const modal = document.getElementById('deleteAccountModal');
+            if (event.target === modal) {
+                closeDeleteAccountModal();
+            }
+        }
+
+        // ESC tuşu ile modal'ı kapat
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeDeleteAccountModal();
+            }
+        });
+
+        // Şifre eşleşme kontrolü (client-side)
+        document.getElementById('confirm_password')?.addEventListener('input', function() {
+            const newPass = document.getElementById('new_password').value;
+            const confirmPass = this.value;
+            
+            if (confirmPass && newPass !== confirmPass) {
+                this.setCustomValidity('Şifreler eşleşmiyor!');
+            } else {
+                this.setCustomValidity('');
+            }
+        });
+    </script>
+</body>
+</html>
+
