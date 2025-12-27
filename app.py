@@ -13,7 +13,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ============= ENVIRONMENT VARIABLES CHECK =============
-# Critical: Fail fast if required environment variables are not set
 SECRET_KEY = os.environ.get('SECRET_KEY')
 if not SECRET_KEY:
     raise ValueError(
@@ -47,7 +46,7 @@ try:
     db = firestore.client()
     logging.info("Firebase baglantisi basarili")
 except Exception as e:
-    print(f"✗ Firebase başlatma hatası: {e}")
+    print(f"Firebase başlatma hatası: {e}")
     logging.error(f"Firebase hata: {e}")
     raise
 

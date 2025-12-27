@@ -1,3 +1,7 @@
+# ============================================
+# SECURE MESSAGE SYSTEM - DEPENDENCIES
+# ============================================
+
 # Flask Web Framework
 Flask==3.1.2
 
@@ -15,3 +19,19 @@ google-cloud-firestore==2.21.0
 
 # Environment Variables Management
 python-dotenv==1.0.0
+
+# ============================================
+# TESTING DEPENDENCIES (NEW!)
+# ============================================
+
+# Pytest - Testing framework
+pytest==7.4.3
+
+# Pytest Flask plugin - Flask app testing
+pytest-flask==1.3.0
+
+# Pytest Coverage - Code coverage reports
+pytest-cov==4.1.0
+
+# Pytest Mock - Mocking support
+pytest-mock==3.12.0
