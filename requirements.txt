@@ -35,3 +35,10 @@ pytest-cov==4.1.0
 
 # Pytest Mock - Mocking support
 pytest-mock==3.12.0
+
+# ============================================
+# AUTOMATION & BACKUP
+# ============================================
+
+# Job scheduling for backup scripts
+schedule==1.2.2
