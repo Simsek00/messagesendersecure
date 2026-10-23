@@ -290,3 +290,60 @@ class TestErrorHandling:
         
         assert response.status_code == 405
 
+
+
+# ============= DASHBOARD MESAJ LİSTESİ TESTLERİ =============
+
+def _fake_doc(doc_id, data):
+    """Firestore DocumentSnapshot taklidi"""
+    from unittest.mock import MagicMock
+    doc = MagicMock()
+    doc.id = doc_id
+    doc.to_dict.return_value = data
+    return doc
+
+
+class TestDashboardMessages:
+    """
+    Dashboard'daki gelen mesaj listesi testleri
+    """
+
+    def _set_incoming(self, mock_db, docs):
+        mock_db.collection.return_value.where.return_value.get.return_value = docs
+
+    def test_newest_messages_first_and_missing_timestamp_last(self, authenticated_client, mock_db):
+        """TEST: En yeni mesaj en üstte olmalı; tarihi olmayan mesaj listeyi bozmamalı"""
+        from datetime import datetime, timezone
+        from app import encrypt_message
+
+        self._set_incoming(mock_db, [
+            _fake_doc('eski', {'sender': 'alice', 'encrypted_content': encrypt_message('ESKI'),
+                               'timestamp': datetime(2025, 1, 1, tzinfo=timezone.utc)}),
+            _fake_doc('tarihsiz', {'sender': 'bob', 'encrypted_content': encrypt_message('TARIHSIZ')}),
+            _fake_doc('yeni', {'sender': 'carol', 'encrypted_content': encrypt_message('YENI'),
+                               'timestamp': datetime(2025, 6, 1, tzinfo=timezone.utc)}),
+        ])
+
+        html = authenticated_client.get('/dashboard').data.decode('utf-8')
+
+        assert 'Mesajlar yüklenemedi' not in html
+        assert html.index('YENI') < html.index('ESKI') < html.index('TARIHSIZ')
+
+    def test_limit_keeps_newest_messages(self, authenticated_client, mock_db):
+        """TEST: 50'den fazla mesaj varken en yeni 50 mesaj gösterilmeli"""
+        from datetime import datetime, timedelta, timezone
+        from app import encrypt_message, DASHBOARD_MESSAGE_LIMIT
+
+        start = datetime(2025, 1, 1, tzinfo=timezone.utc)
+        docs = [_fake_doc(f'm{i}', {'sender': 'alice', 'encrypted_content': encrypt_message(f'MSG-{i:03d}'),
+                                    'timestamp': start + timedelta(minutes=i)})
+                for i in range(DASHBOARD_MESSAGE_LIMIT + 10)]
+        self._set_incoming(mock_db, docs)
+
+        html = authenticated_client.get('/dashboard').data.decode('utf-8')
+
+        newest = DASHBOARD_MESSAGE_LIMIT + 9
+        assert f'MSG-{newest:03d}' in html
+        assert 'MSG-000' not in html
+        # Firestore sorgusunda limit() kullanılmamalı (sıralamadan önce kesmesin)
+        mock_db.collection.return_value.where.return_value.limit.assert_not_called()

@@ -272,6 +272,12 @@ def handle_csrf_error(e):
     flash('Oturum doğrulanamadı. Lütfen sayfayı yenileyip tekrar deneyin.', 'error')
     return redirect(url_for('index'))
 
+DASHBOARD_MESSAGE_LIMIT = 50
+
+def _timestamp_sort_key(timestamp) -> float:
+    """Sıralama anahtarı: datetime'ı sayıya çevirir; tarihi olmayan mesaj 0 olur (datetime ile 0 karşılaştırılamaz)"""
+    return timestamp.timestamp() if timestamp else 0.0
+
 @app.route('/dashboard')
 def dashboard():
     """Ana panel - mesajları göster"""
@@ -283,33 +289,28 @@ def dashboard():
     try:
         from google.cloud.firestore_v1.base_query import FieldFilter
         messages_ref = db.collection('messages')
-        incoming_messages = messages_ref.where(
+        # limit() sıralamadan önce uygulanırsa Firestore rastgele 50 mesaj döndürür ve en yeniler görünmeyebilir.
+        # order_by + where farklı alanlarda composite index gerektirdiği için sıralama Python'da yapılır.
+        incoming_docs = [(doc.id, doc.to_dict()) for doc in messages_ref.where(
             filter=FieldFilter('receiver', '==', username)
-        ).limit(50).get()
-        
+        ).get()]
+
+        # Mesajları tarihe göre sırala (en yeniden eskiye); tarihi olmayanlar en sona
+        incoming_docs.sort(key=lambda item: _timestamp_sort_key(item[1].get('timestamp')), reverse=True)
+
         messages = []
-        for doc in incoming_messages:
-            msg_data = doc.to_dict()
+        for doc_id, msg_data in incoming_docs[:DASHBOARD_MESSAGE_LIMIT]:
             # Timestamp'i düzgün formatla
             timestamp = msg_data.get('timestamp')
-            if timestamp:
-                timestamp_str = timestamp.strftime("%d.%m.%Y %H:%M")
-                timestamp_sort = timestamp  # Sıralama için
-            else:
-                timestamp_str = "Tarih yok"
-                timestamp_sort = None
-            
+            timestamp_str = timestamp.strftime("%d.%m.%Y %H:%M") if timestamp else "Tarih yok"
+
             messages.append({
-                'id': doc.id,  # Mesaj ID'si (silme için gerekli)
+                'id': doc_id,  # Mesaj ID'si (silme için gerekli)
                 'sender': msg_data.get('sender', 'Bilinmeyen'),
                 'content': decrypt_message(msg_data.get('encrypted_content', '')),
-                'timestamp': timestamp_str,
-                'timestamp_sort': timestamp_sort
+                'timestamp': timestamp_str
             })
-        
-        # Mesajları tarihe göre sırala (en yeniden eskiye)
-        messages.sort(key=lambda x: x['timestamp_sort'] if x['timestamp_sort'] else 0, reverse=True)
-        
+
         return render_template('dashboard.html', username=username, messages=messages)
         
     except Exception as e:
