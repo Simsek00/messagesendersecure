@@ -400,3 +400,37 @@ class TestCSRFProtection:
 
         with csrf_client.session_transaction() as session:
             assert 'username' not in session
+
+
+# ============= RATE LIMITING TESTLERİ =============
+
+class TestRateLimiting:
+    """
+    Giriş ve kayıt isteklerinin IP başına sınırlandığını kontrol eder.
+    """
+
+    @pytest.fixture
+    def limited_client(self, app):
+        import app as app_module
+        app_module.limiter.enabled = True
+        app_module.limiter.reset()
+        yield app.test_client()
+        app_module.limiter.reset()
+        app_module.limiter.enabled = False
+
+    def test_login_blocked_after_5_attempts_per_minute(self, limited_client):
+        """TEST: Dakikada 5'ten fazla giriş denemesi engellenmeli"""
+        for _ in range(5):
+            limited_client.post('/login', data={'username': 'alice', 'password': 'yanlis123'})
+
+        response = limited_client.post('/login', data={'username': 'alice', 'password': 'yanlis123'},
+                                       follow_redirects=True)
+
+        assert 'Çok fazla deneme' in response.data.decode('utf-8')
+
+    def test_register_page_get_not_limited(self, limited_client):
+        """TEST: Kayıt sayfasını açmak (GET) sınırlanmamalı"""
+        for _ in range(15):
+            response = limited_client.get('/register')
+
+        assert response.status_code == 200

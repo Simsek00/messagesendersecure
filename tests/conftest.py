@@ -45,6 +45,9 @@ with patch('firebase_admin.credentials.Certificate'), \
      patch('firebase_admin.firestore.client', return_value=MOCK_DB):
     import app as app_module
 
+# Rate limiting testlerde kapalı (aynı IP'den çok sayıda istek atılıyor); TestRateLimiting kendisi açar.
+app_module.limiter.enabled = False
+
 # app.py'den gerekli fonksiyonları import et
 from app import app as flask_app, hash_password
 

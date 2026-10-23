@@ -3,6 +3,8 @@ import re
 import logging
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_wtf.csrf import CSRFProtect, CSRFError
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import firebase_admin
 from firebase_admin import credentials, firestore
 from google.cloud.firestore import SERVER_TIMESTAMP
@@ -36,6 +38,11 @@ app.secret_key = SECRET_KEY
 # Tüm POST istekleri session'a bağlı bir token ister: formlarda gizli csrf_token alanı,
 # fetch isteklerinde X-CSRFToken header'ı. Başka bir siteden gönderilen sahte formlar reddedilir.
 csrf = CSRFProtect(app)
+
+# ============= RATE LIMITING =============
+# Kaba kuvvet (brute force) şifre denemelerine karşı giriş ve kayıt istekleri IP başına sınırlanır.
+# memory:// sayaçları bu sürecin belleğinde tutar; birden fazla sunucu sürecinde Redis gibi ortak bir depo kullanılmalı.
+limiter = Limiter(get_remote_address, app=app, storage_uri="memory://")
 
 # ============= LOGGING =============
 logging.basicConfig(
@@ -157,6 +164,7 @@ def index():
     return render_template('login.html')
 
 @app.route('/register', methods=['GET', 'POST'])
+@limiter.limit("10 per hour", methods=['POST'])
 def register():
     """Kullanıcı kaydı"""
     if request.method == 'POST':
@@ -211,6 +219,7 @@ def register():
     return render_template('register.html')
 
 @app.route('/login', methods=['POST'])
+@limiter.limit("5 per minute;20 per hour")
 def login():
     """Kullanıcı girişi"""
     username = request.form.get('username', '').strip()
@@ -262,6 +271,13 @@ def logout():
     logging.info(f"Cikis: {username}")
     flash('Çıkış yapıldı.', 'success')
     return redirect(url_for('index'))
+
+@app.errorhandler(429)
+def handle_rate_limit(e):
+    """Çok fazla deneme (rate limit aşıldı)"""
+    logging.warning(f"Rate limit asildi: {get_remote_address()} {request.path}")
+    flash('Çok fazla deneme yaptınız. Lütfen biraz bekleyip tekrar deneyin.', 'error')
+    return redirect(url_for('index')), 302
 
 @app.errorhandler(CSRFError)
 def handle_csrf_error(e):
