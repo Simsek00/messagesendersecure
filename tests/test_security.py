@@ -204,7 +204,7 @@ class TestSessionSecurity:
         """
         TEST: Logout'ta session tamamen temizlenmeli
         """
-        authenticated_client.get('/logout')
+        authenticated_client.post('/logout')
         
         with authenticated_client.session_transaction() as session:
             assert 'username' not in session
@@ -340,3 +340,63 @@ class TestSecurityIntegration:
         assert "123456789" not in encrypted
         assert "hesap" not in encrypted
 
+
+
+# ============= CSRF KORUMASI TESTLERİ =============
+
+class TestCSRFProtection:
+    """
+    CSRF (Cross-Site Request Forgery) testleri
+
+    Diğer testlerde WTF_CSRF_ENABLED kapalıdır; burada açılıp
+    token'sız POST isteklerinin reddedildiği kontrol edilir.
+    """
+
+    @pytest.fixture
+    def csrf_client(self, app):
+        app.config['WTF_CSRF_ENABLED'] = True
+        client = app.test_client()
+        with client.session_transaction() as session:
+            session['username'] = 'test_user_123'
+        yield client
+        app.config['WTF_CSRF_ENABLED'] = False
+
+    def test_send_without_token_rejected(self, csrf_client, mock_db):
+        """TEST: Token'sız mesaj gönderme reddedilmeli ve veritabanına yazılmamalı"""
+        response = csrf_client.post('/send', data={'receiver': 'bob', 'message': 'merhaba'})
+
+        assert response.status_code == 302
+        mock_db.collection.return_value.add.assert_not_called()
+
+    def test_delete_message_without_token_returns_400(self, csrf_client, mock_db):
+        """TEST: Token'sız mesaj silme JSON 400 dönmeli"""
+        response = csrf_client.post('/delete_message/abc123', json={})
+
+        assert response.status_code == 400
+        assert response.get_json()['success'] is False
+        mock_db.collection.return_value.document.assert_not_called()
+
+    def test_logout_without_token_keeps_session(self, csrf_client):
+        """TEST: Token'sız logout oturumu kapatmamalı"""
+        csrf_client.post('/logout')
+
+        with csrf_client.session_transaction() as session:
+            assert session.get('username') == 'test_user_123'
+
+    def test_forms_include_csrf_token(self, app):
+        """TEST: Login sayfasındaki form CSRF token alanı içermeli"""
+        response = app.test_client().get('/')
+
+        assert b'name="csrf_token"' in response.data
+
+    def test_request_with_valid_token_accepted(self, csrf_client):
+        """TEST: Sayfadan alınan geçerli token ile logout çalışmalı"""
+        import re
+        page = csrf_client.get('/profile', follow_redirects=True)
+        token = re.search(rb'name="csrf_token" value="([^"]+)"', page.data)
+        assert token, "Sayfada CSRF token bulunamadı"
+
+        csrf_client.post('/logout', data={'csrf_token': token.group(1).decode()})
+
+        with csrf_client.session_transaction() as session:
+            assert 'username' not in session

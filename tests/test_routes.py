@@ -143,7 +143,7 @@ class TestLogoutRoute:
     
     def test_logout_redirects(self, authenticated_client):
         """TEST: Logout redirect vermeli"""
-        response = authenticated_client.get('/logout', follow_redirects=False)
+        response = authenticated_client.post('/logout', follow_redirects=False)
         
         assert response.status_code == 302
     
@@ -154,7 +154,7 @@ class TestLogoutRoute:
             assert 'username' in session
         
         # Logout
-        authenticated_client.get('/logout')
+        authenticated_client.post('/logout')
         
         # Session temizlendi
         with authenticated_client.session_transaction() as session:
@@ -263,11 +263,11 @@ class TestHTTPMethods:
         post_response = client.post('/login', data={})
         assert post_response.status_code in [200, 302, 400]
     
-    def test_logout_accepts_get(self, authenticated_client):
-        """TEST: Logout GET kabul etmeli"""
+    def test_logout_rejects_get(self, authenticated_client):
+        """TEST: Logout sadece POST kabul etmeli (GET linkiyle CSRF logout engellenir)"""
         response = authenticated_client.get('/logout')
         
-        assert response.status_code in [200, 302]
+        assert response.status_code == 405
 
 
 # ============= ERROR HANDLING TESTLERİ =============
@@ -285,7 +285,7 @@ class TestErrorHandling:
     
     def test_method_not_allowed(self, client):
         """TEST: Yanlış HTTP method 405 dönmeli"""
-        # Logout sadece GET kabul eder
+        # Logout sadece POST kabul eder
         response = client.delete('/logout')
         
         assert response.status_code == 405

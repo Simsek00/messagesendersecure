@@ -5,6 +5,9 @@
 # Flask Web Framework
 Flask==3.1.2
 
+# CSRF koruması (formlar ve fetch istekleri için token)
+Flask-WTF==1.3.0
+
 # Firebase Admin SDK (Firestore database)
 firebase-admin==7.1.0
 

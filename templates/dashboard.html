@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Dashboard - Secure Message System</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
@@ -16,7 +17,10 @@
             </div>
             <div class="header-right">
                 <a href="/profile" class="btn btn-secondary">👤 Profilim</a>
-                <a href="/logout" class="btn btn-logout">Çıkış Yap</a>
+                <form method="POST" action="/logout" class="logout-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-logout">Çıkış Yap</button>
+                </form>
             </div>
         </header>
 
@@ -39,6 +43,7 @@
             <div class="card send-card">
                 <h2>📤 Yeni Mesaj Gönder</h2>
                 <form method="POST" action="/send" class="send-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="form-group">
                         <label for="receiver">Alıcı Kullanıcı Adı</label>
                         <input 
@@ -146,6 +151,7 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content,
                 }
             })
             .then(response => response.json())

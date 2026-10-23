@@ -128,7 +128,7 @@ class TestSessionManagement:
             assert 'username' in session
         
         # Logout
-        authenticated_client.get('/logout', follow_redirects=True)
+        authenticated_client.post('/logout', follow_redirects=True)
         
         # Session temizlendi mi?
         with authenticated_client.session_transaction() as session:
@@ -182,7 +182,7 @@ class TestAuthRoutes:
         """
         TEST: Logout sonrası login'e yönlendirmeli
         """
-        response = authenticated_client.get('/logout', follow_redirects=False)
+        response = authenticated_client.post('/logout', follow_redirects=False)
         
         assert response.status_code == 302, "Logout redirect vermeli"
     

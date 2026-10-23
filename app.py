@@ -2,6 +2,7 @@ import os
 import re
 import logging
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask_wtf.csrf import CSRFProtect, CSRFError
 import firebase_admin
 from firebase_admin import credentials, firestore
 from google.cloud.firestore import SERVER_TIMESTAMP
@@ -30,6 +31,11 @@ if not ENCRYPTION_KEY_STR:
 # ============= FLASK UYGULAMASI =============
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
+
+# ============= CSRF KORUMASI =============
+# Tüm POST istekleri session'a bağlı bir token ister: formlarda gizli csrf_token alanı,
+# fetch isteklerinde X-CSRFToken header'ı. Başka bir siteden gönderilen sahte formlar reddedilir.
+csrf = CSRFProtect(app)
 
 # ============= LOGGING =============
 logging.basicConfig(
@@ -248,13 +254,22 @@ def login():
         logging.error(f"Login error: {e}")
         return redirect(url_for('index'))
 
-@app.route('/logout')
+@app.route('/logout', methods=['POST'])
 def logout():
-    """Çıkış yap"""
+    """Çıkış yap (POST: başka bir site kullanıcıyı GET linkiyle çıkışa zorlayamaz)"""
     username = session.get('username', 'Bilinmeyen')
     session.pop('username', None)
     logging.info(f"Cikis: {username}")
     flash('Çıkış yapıldı.', 'success')
+    return redirect(url_for('index'))
+
+@app.errorhandler(CSRFError)
+def handle_csrf_error(e):
+    """Geçersiz veya eksik CSRF token'ı"""
+    logging.warning(f"CSRF hatasi: {request.path} - {e.description}")
+    if request.is_json or request.path.startswith('/delete_message/'):
+        return jsonify({'success': False, 'error': 'Oturum doğrulanamadı, sayfayı yenileyin'}), 400
+    flash('Oturum doğrulanamadı. Lütfen sayfayı yenileyip tekrar deneyin.', 'error')
     return redirect(url_for('index'))
 
 @app.route('/dashboard')

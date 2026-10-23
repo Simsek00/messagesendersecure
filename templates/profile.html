@@ -16,7 +16,10 @@
             </div>
             <div class="header-right">
                 <a href="/dashboard" class="btn btn-secondary">← Dashboard'a Dön</a>
-                <a href="/logout" class="btn btn-logout">Çıkış Yap</a>
+                <form method="POST" action="/logout" class="logout-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-logout">Çıkış Yap</button>
+                </form>
             </div>
         </header>
 
@@ -67,6 +70,7 @@
                 <h2>🔑 Şifre Değiştir</h2>
                 
                 <form method="POST" action="/change_password" class="profile-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="form-group">
                         <label for="current_password">Mevcut Şifre</label>
                         <input 
@@ -138,6 +142,7 @@
             </p>
             
             <form method="POST" action="/delete_account" id="deleteAccountForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="form-group">
                     <label for="confirm_password_delete">Şifrenizi Girin (Onay İçin)</label>
                     <input 

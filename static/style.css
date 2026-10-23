@@ -157,6 +157,16 @@ body {
     transform: translateY(-2px);
 }
 
+/* Çıkış, CSRF'e karşı GET linki yerine POST formu ile yapılır */
+.logout-form {
+    display: inline-block;
+    margin: 0;
+}
+
+.logout-form .btn-logout {
+    font-family: inherit;
+}
+
 /* === Auth Footer === */
 .auth-footer {
     text-align: center;
