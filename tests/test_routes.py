@@ -380,3 +380,35 @@ class TestSendMessage:
         assert saved['receiver'] == 'bob'
         assert saved['sender'] == 'test_user_123'
         assert 'gizli mesaj' not in saved['encrypted_content']
+
+
+# ============= KAYIT YARIŞ DURUMU TESTLERİ =============
+
+class TestRegisterUniqueness:
+    """
+    Aynı kullanıcı adıyla iki kaydın oluşmaması
+    """
+
+    def _no_existing_user(self, mock_db):
+        mock_db.collection.return_value.where.return_value.limit.return_value.get.return_value = []
+
+    def test_register_creates_document_with_username_id(self, client, mock_db):
+        """TEST: Kullanıcı, adını ID olarak kullanan dokümanla create() ile kaydedilmeli"""
+        self._no_existing_user(mock_db)
+
+        client.post('/register', data={'username': 'yeni_kullanici', 'password': 'Sifre123'})
+
+        mock_db.collection.return_value.document.assert_called_once_with('yeni_kullanici')
+        mock_db.collection.return_value.document.return_value.create.assert_called_once()
+        mock_db.collection.return_value.add.assert_not_called()
+
+    def test_concurrent_duplicate_registration_rejected(self, client, mock_db):
+        """TEST: Kontrolden sonra aynı ad kaydedilmişse (AlreadyExists) kullanıcıya uyarı verilmeli"""
+        from google.api_core.exceptions import AlreadyExists
+        self._no_existing_user(mock_db)
+        mock_db.collection.return_value.document.return_value.create.side_effect = AlreadyExists('exists')
+
+        response = client.post('/register', data={'username': 'yeni_kullanici', 'password': 'Sifre123'},
+                               follow_redirects=True)
+
+        assert 'zaten kullanılıyor' in response.data.decode('utf-8')

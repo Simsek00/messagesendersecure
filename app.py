@@ -9,6 +9,7 @@ from flask_limiter.util import get_remote_address
 import firebase_admin
 from firebase_admin import credentials, firestore
 from google.cloud.firestore import SERVER_TIMESTAMP
+from google.api_core.exceptions import AlreadyExists
 import bcrypt
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
@@ -214,11 +215,18 @@ def register():
             hashed_password = hash_password(password)
             
             # Veritabanına kaydet
-            users_ref.add({
-                'username': username,
-                'password': hashed_password,
-                'created_at': SERVER_TIMESTAMP
-            })
+            # Doküman ID'si kullanıcı adı: create() aynı ID varsa AlreadyExists fırlatır.
+            # Böylece yukarıdaki kontrol ile kayıt arasında aynı adla gelen ikinci istek de reddedilir.
+            try:
+                users_ref.document(username).create({
+                    'username': username,
+                    'password': hashed_password,
+                    'created_at': SERVER_TIMESTAMP
+                })
+            except AlreadyExists:
+                flash('Bu kullanıcı adı zaten kullanılıyor!', 'error')
+                logging.warning(f"Kayit yarisi - kullanici var: {username}")
+                return redirect(url_for('register'))
             
             flash('Kayıt başarılı! Giriş yapabilirsiniz.', 'success')
             logging.info(f"Yeni kullanici kaydi: {username}")
