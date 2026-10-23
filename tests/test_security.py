@@ -434,3 +434,29 @@ class TestRateLimiting:
             response = limited_client.get('/register')
 
         assert response.status_code == 200
+
+
+# ============= HATA MESAJI SIZINTISI TESTLERİ =============
+
+class TestErrorMessageLeak:
+    """
+    Veritabanı hatalarının ayrıntısı kullanıcıya gösterilmemeli (sadece log'a yazılmalı).
+    """
+
+    def test_dashboard_error_hides_exception_details(self, authenticated_client, mock_db):
+        """TEST: Firestore hatasının metni sayfada görünmemeli"""
+        mock_db.collection.side_effect = RuntimeError("projects/secret-project/databases/(default) erisim reddedildi")
+
+        html = authenticated_client.get('/dashboard').data.decode('utf-8')
+
+        assert 'Mesajlar yüklenemedi' in html
+        assert 'secret-project' not in html
+
+    def test_delete_message_error_hides_exception_details(self, authenticated_client, mock_db):
+        """TEST: Mesaj silme hatasında JSON cevabı iç ayrıntı içermemeli"""
+        mock_db.collection.side_effect = RuntimeError("internal path C:/server/serviceAccountKey.json")
+
+        response = authenticated_client.post('/delete_message/abc123')
+
+        assert response.status_code == 500
+        assert 'serviceAccountKey' not in response.get_data(as_text=True)

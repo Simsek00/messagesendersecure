@@ -71,6 +71,9 @@ try:
 except Exception as e:
     raise ValueError(f"CRITICAL: Invalid ENCRYPTION_KEY format: {e}")
 
+# Hata ayrıntıları (exception metni) kullanıcıya gösterilmez, sadece app.log'a yazılır:
+# veritabanı yapısı, dosya yolları gibi iç bilgilerin sızmasını önler.
+
 # ============= GÜVENLİK FONKSİYONLARI =============
 
 def hash_password(password: str) -> str:
@@ -212,7 +215,7 @@ def register():
             return redirect(url_for('index'))
             
         except Exception as e:
-            flash(f'Bir hata oluştu: {str(e)}', 'error')
+            flash('Kayıt sırasında bir hata oluştu. Lütfen daha sonra tekrar deneyin.', 'error')
             logging.error(f"Register error: {e}")
             return redirect(url_for('register'))
     
@@ -259,7 +262,7 @@ def login():
             return redirect(url_for('index'))
             
     except Exception as e:
-        flash(f'Giriş hatası: {str(e)}', 'error')
+        flash('Giriş sırasında bir hata oluştu. Lütfen daha sonra tekrar deneyin.', 'error')
         logging.error(f"Login error: {e}")
         return redirect(url_for('index'))
 
@@ -330,7 +333,7 @@ def dashboard():
         return render_template('dashboard.html', username=username, messages=messages)
         
     except Exception as e:
-        flash(f'Mesajlar yüklenemedi: {str(e)}', 'error')
+        flash('Mesajlar yüklenemedi. Lütfen daha sonra tekrar deneyin.', 'error')
         logging.error(f"Dashboard error: {e}")
         return render_template('dashboard.html', username=username, messages=[])
 
@@ -387,7 +390,7 @@ def send_message():
         return redirect(url_for('dashboard'))
         
     except Exception as e:
-        flash(f'Mesaj gönderilemedi: {str(e)}', 'error')
+        flash('Mesaj gönderilemedi. Lütfen daha sonra tekrar deneyin.', 'error')
         logging.error(f"Send message error: {e}")
         return redirect(url_for('dashboard'))
 
@@ -422,7 +425,7 @@ def delete_message(message_id):
         
     except Exception as e:
         logging.error(f"Delete message error: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Mesaj silinemedi, lütfen tekrar deneyin'}), 500
 
 @app.route('/profile')
 def profile():
@@ -474,7 +477,7 @@ def profile():
         return render_template('profile.html', user=profile_data)
         
     except Exception as e:
-        flash(f'Profil yüklenemedi: {str(e)}', 'error')
+        flash('Profil yüklenemedi. Lütfen daha sonra tekrar deneyin.', 'error')
         logging.error(f"Profile error: {e}")
         return redirect(url_for('dashboard'))
 
@@ -529,7 +532,7 @@ def change_password():
         return redirect(url_for('profile'))
         
     except Exception as e:
-        flash(f'Şifre değiştirilemedi: {str(e)}', 'error')
+        flash('Şifre değiştirilemedi. Lütfen daha sonra tekrar deneyin.', 'error')
         logging.error(f"Change password error: {e}")
         return redirect(url_for('profile'))
 
@@ -589,7 +592,7 @@ def delete_account():
         return redirect(url_for('index'))
         
     except Exception as e:
-        flash(f'Hesap silinemedi: {str(e)}', 'error')
+        flash('Hesap silinemedi. Lütfen daha sonra tekrar deneyin.', 'error')
         logging.error(f"Delete account error: {e}")
         return redirect(url_for('profile'))
 
