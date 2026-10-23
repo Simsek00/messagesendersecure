@@ -1,6 +1,7 @@
 import os
 import re
 import logging
+from datetime import timedelta
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from flask_limiter import Limiter
@@ -33,6 +34,15 @@ if not ENCRYPTION_KEY_STR:
 # ============= FLASK UYGULAMASI =============
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
+
+# ============= SESSION COOKIE AYARLARI =============
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,      # JavaScript session cookie'sini okuyamaz
+    SESSION_COOKIE_SAMESITE='Lax',     # Başka sitelerden gelen POST isteklerinde cookie gönderilmez
+    # HTTPS arkasında yayınlarken .env'de SESSION_COOKIE_SECURE=1 yapın (cookie sadece HTTPS'te gönderilir)
+    SESSION_COOKIE_SECURE=os.environ.get('SESSION_COOKIE_SECURE', '0').lower() in ('1', 'true', 'yes'),
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=1),  # Oturum 1 saat sonra sona erer
+)
 
 # ============= CSRF KORUMASI =============
 # Tüm POST istekleri session'a bağlı bir token ister: formlarda gizli csrf_token alanı,
@@ -253,6 +263,9 @@ def login():
         
         # Şifre kontrolü
         if verify_password(password, user_data['password']):
+            # Önceki oturumdan kalan veriyi temizle, süreli oturum başlat
+            session.clear()
+            session.permanent = True
             session['username'] = username
             logging.info(f"Basarili giris: {username}")
             return redirect(url_for('dashboard'))

@@ -460,3 +460,38 @@ class TestErrorMessageLeak:
 
         assert response.status_code == 500
         assert 'serviceAccountKey' not in response.get_data(as_text=True)
+
+
+# ============= SESSION COOKIE AYARLARI TESTLERİ =============
+
+class TestSessionCookieSettings:
+    """
+    Session cookie güvenlik ayarları
+    """
+
+    def test_cookie_flags(self, app):
+        """TEST: HttpOnly ve SameSite ayarlı, oturum süresi sınırlı olmalı"""
+        assert app.config['SESSION_COOKIE_HTTPONLY'] is True
+        assert app.config['SESSION_COOKIE_SAMESITE'] == 'Lax'
+        assert app.config['PERMANENT_SESSION_LIFETIME'].total_seconds() == 3600
+
+    def test_login_starts_fresh_permanent_session(self, client, mock_db):
+        """TEST: Başarılı girişte eski session verisi silinmeli ve süreli oturum başlamalı"""
+        from unittest.mock import MagicMock
+        from app import hash_password
+
+        user_doc = MagicMock()
+        user_doc.to_dict.return_value = {'username': 'alice', 'password': hash_password('AlicePass123')}
+        mock_db.collection.return_value.where.return_value.limit.return_value.get.return_value = [user_doc]
+
+        with client.session_transaction() as session:
+            session['eski_veri'] = 'x'
+
+        response = client.post('/login', data={'username': 'alice', 'password': 'AlicePass123'})
+
+        assert response.status_code == 302
+        with client.session_transaction() as session:
+            assert session['username'] == 'alice'
+            assert 'eski_veri' not in session
+            assert session.permanent is True
+        assert 'HttpOnly' in response.headers.get('Set-Cookie', '')
