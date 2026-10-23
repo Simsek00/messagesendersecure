@@ -553,11 +553,20 @@ def delete_account():
 # ============= UYGULAMA BAŞLATMA =============
 
 if __name__ == '__main__':
+    # Debug modu (Werkzeug debugger) varsayılan olarak KAPALI ve sunucu sadece bu bilgisayardan erişilebilir.
+    # Debugger ağa açılırsa uzaktan kod çalıştırmaya izin verir; geliştirirken .env'de FLASK_DEBUG=1 yapın.
+    debug = os.environ.get('FLASK_DEBUG', '0').lower() in ('1', 'true', 'yes')
+    host = os.environ.get('FLASK_HOST', '127.0.0.1')
+    port = int(os.environ.get('FLASK_PORT', '5000'))
+
+    if debug and host not in ('127.0.0.1', 'localhost'):
+        raise ValueError("CRITICAL: FLASK_DEBUG açıkken FLASK_HOST sadece 127.0.0.1 veya localhost olabilir.")
+
     print("=" * 50)
     print("SECURE MESSAGE SYSTEM")
     print("=" * 50)
     print("Güvenli mesajlaşma sistemi başlatılıyor...")
-    print("Tarayıcıdan http://127.0.0.1:5000 adresine gidin")
+    print(f"Tarayıcıdan http://{'127.0.0.1' if host == '0.0.0.0' else host}:{port} adresine gidin")
     print("=" * 50)
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=debug, host=host, port=port)
 
