@@ -347,3 +347,36 @@ class TestDashboardMessages:
         assert 'MSG-000' not in html
         # Firestore sorgusunda limit() kullanılmamalı (sıralamadan önce kesmesin)
         mock_db.collection.return_value.where.return_value.limit.assert_not_called()
+
+
+# ============= MESAJ GÖNDERME TESTLERİ =============
+
+class TestSendMessage:
+    """
+    /send route testleri (Firestore mock'u ile)
+    """
+
+    def _set_receiver_lookup(self, mock_db, docs):
+        mock_db.collection.return_value.where.return_value.limit.return_value.get.return_value = docs
+
+    def test_send_to_unknown_user_rejected(self, authenticated_client, mock_db):
+        """TEST: Kayıtlı olmayan kullanıcıya mesaj kaydedilmemeli"""
+        self._set_receiver_lookup(mock_db, [])
+
+        response = authenticated_client.post('/send', data={'receiver': 'nobody', 'message': 'merhaba'},
+                                             follow_redirects=True)
+
+        mock_db.collection.return_value.add.assert_not_called()
+        assert 'bulunamadı' in response.data.decode('utf-8')
+
+    def test_send_to_existing_user_saves_encrypted(self, authenticated_client, mock_db):
+        """TEST: Kayıtlı kullanıcıya mesaj şifreli olarak kaydedilmeli"""
+        self._set_receiver_lookup(mock_db, [_fake_doc('u1', {'username': 'bob'})])
+
+        authenticated_client.post('/send', data={'receiver': 'bob', 'message': 'gizli mesaj'})
+
+        mock_db.collection.return_value.add.assert_called_once()
+        saved = mock_db.collection.return_value.add.call_args[0][0]
+        assert saved['receiver'] == 'bob'
+        assert saved['sender'] == 'test_user_123'
+        assert 'gizli mesaj' not in saved['encrypted_content']

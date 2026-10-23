@@ -344,6 +344,17 @@ def send_message():
     message_content = msg_validated  # Sanitized
     
     try:
+        # Alıcı kayıtlı olmalı; aksi halde mesaj, ileride bu adla kayıt olan birine gider
+        from google.cloud.firestore_v1.base_query import FieldFilter
+        receiver_docs = db.collection('users').where(
+            filter=FieldFilter('username', '==', receiver)
+        ).limit(1).get()
+
+        if len(receiver_docs) == 0:
+            flash(f'"{receiver}" adında bir kullanıcı bulunamadı.', 'error')
+            logging.warning(f"Olmayan aliciya mesaj denemesi: {sender} -> {receiver}")
+            return redirect(url_for('dashboard'))
+
         # Mesajı şifrele
         encrypted_content = encrypt_message(message_content)
         
