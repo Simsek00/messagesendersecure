@@ -243,6 +243,10 @@ def login_test_user(client, username='testuser', password='TestPass123'):
 
 def pytest_configure(config):
     """Pytest başlamadan önce çalışır"""
+    # Türkçe Windows konsolu (cp1254) emojileri yazamaz; çıktı yönlendirildiğinde
+    # UnicodeEncodeError ile tüm test oturumu çöküyordu. Yazılamayan karakterler '?' olur.
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(errors='replace')
     print("\n" + "=" * 60)
     print("🧪 SECURE MESSAGE SYSTEM - TEST SUITE")
     print("=" * 60)
