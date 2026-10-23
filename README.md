@@ -10,7 +10,9 @@
 
 ### 📋 About the Project
 
-This project is an end-to-end encrypted messaging system. Even the database cannot see the content of messages - all messages are encrypted with AES-256 and passwords are hashed with bcrypt.
+This project is a messaging system with server-side encryption. Message contents are encrypted with Fernet (AES) before they are written to the database, so the database (Firestore) and its backups only see ciphertext. Passwords are hashed with bcrypt.
+
+> ℹ️ This is **not** end-to-end encryption: all messages are encrypted with a single key held by the server (`ENCRYPTION_KEY`). Anyone with access to the server or the `.env` file can decrypt them.
 
 #### 🎯 Project Goals
 
@@ -18,6 +20,9 @@ This project is an end-to-end encrypted messaging system. Even the database cann
 2. **Encrypted Messaging:** Message encryption with Fernet (AES-256)
 3. **Input Validation:** Protection against XSS and injection attacks
 4. **Logging:** Audit log of all operations
+5. **CSRF Protection:** Every POST form and request carries a token (Flask-WTF); logout is POST-only
+6. **Rate Limiting:** Login (5/min, 20/hour) and registration (10/hour) per IP (Flask-Limiter)
+7. **Session Security:** HttpOnly + SameSite cookies, 1-hour session lifetime
 
 ### 👥 Team
 
@@ -79,8 +84,10 @@ python app.py
 ```
 Open `http://localhost:5000` in your browser.
 
+By default the server only listens on `127.0.0.1` with debug mode off. For development you can set `FLASK_DEBUG=1` in `.env` (only together with `FLASK_HOST=127.0.0.1`, since the debugger allows remote code execution). The other settings are documented in `.env.example`.
+
 #### 6. Run the tests
-The tests import `app.py`, so the `.env` and `serviceAccountKey.json` files must be in place.
+The tests mock Firebase and use test keys, so they run without `.env` or `serviceAccountKey.json` and never touch your real database.
 ```bash
 pytest
 ```
@@ -114,7 +121,9 @@ python backup.py
 
 ### 📋 Proje Hakkında
 
-Bu proje, end-to-end şifrelenmiş mesajlaşma sistemidir. Veritabanı bile mesajların içeriğini göremez - tüm mesajlar AES-256 ile şifrelenir, şifreler bcrypt ile hashlenır.
+Bu proje, sunucu tarafında şifreleme yapan bir mesajlaşma sistemidir. Mesaj içerikleri veritabanına yazılmadan önce Fernet (AES) ile şifrelenir; bu yüzden veritabanı (Firestore) ve yedekleri sadece şifreli metni görür. Şifreler bcrypt ile hashlenir.
+
+> ℹ️ Bu **uçtan uca (end-to-end) şifreleme değildir**: tüm mesajlar sunucuda tutulan tek bir anahtarla (`ENCRYPTION_KEY`) şifrelenir. Sunucuya veya `.env` dosyasına erişen biri mesajları çözebilir.
 
 #### 🎯 Proje Hedefleri
 
@@ -122,6 +131,9 @@ Bu proje, end-to-end şifrelenmiş mesajlaşma sistemidir. Veritabanı bile mesa
 2. **Encrypted Messaging:** Fernet (AES-256) ile mesaj şifreleme
 3. **Input Validation:** XSS ve Injection saldırılarına karşı koruma
 4. **Logging:** Tüm işlemlerin audit log'u
+5. **CSRF Koruması:** Tüm POST formları ve istekleri token taşır (Flask-WTF); çıkış sadece POST ile yapılır
+6. **Rate Limiting:** IP başına giriş (5/dakika, 20/saat) ve kayıt (10/saat) sınırı (Flask-Limiter)
+7. **Oturum Güvenliği:** HttpOnly + SameSite cookie, 1 saatlik oturum süresi
 
 ### 👥 Ekip
 
@@ -183,8 +195,10 @@ python app.py
 ```
 Tarayıcıdan `http://localhost:5000` adresine gidin.
 
+Sunucu varsayılan olarak sadece `127.0.0.1` adresini dinler ve debug modu kapalıdır. Geliştirirken `.env`'de `FLASK_DEBUG=1` yapabilirsiniz (debugger uzaktan kod çalıştırmaya izin verdiği için sadece `FLASK_HOST=127.0.0.1` ile birlikte). Diğer ayarlar `.env.example` içinde açıklanmıştır.
+
 #### 6. Testleri çalıştırın
-Testler `app.py`'yi import ettiği için `.env` ve `serviceAccountKey.json` dosyalarının hazır olması gerekir.
+Testler Firebase'i mock'lar ve test anahtarları kullanır; bu yüzden `.env` veya `serviceAccountKey.json` olmadan çalışır ve gerçek veritabanınıza dokunmaz.
 ```bash
 pytest
 ```
