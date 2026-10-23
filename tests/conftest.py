@@ -24,12 +24,42 @@ import pytest
 import sys
 import os
 from datetime import datetime
+from unittest.mock import MagicMock, patch
+
+from cryptography.fernet import Fernet
 
 # Ana dizini path'e ekle (app.py'yi import edebilmek için)
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+# ============= ORTAM HAZIRLIĞI (app import edilmeden ÖNCE) =============
+# Testler gerçek Firebase'e bağlanmaz ve gerçek anahtar gerektirmez.
+# - SECRET_KEY / ENCRYPTION_KEY: .env yoksa test değerleri kullanılır (load_dotenv var olan env'i ezmez).
+# - Firebase: Certificate, initialize_app ve firestore.client mock'lanır; app.db bir MagicMock olur.
+os.environ['SECRET_KEY'] = 'test-secret-key-for-pytest'
+os.environ['ENCRYPTION_KEY'] = Fernet.generate_key().decode()
+
+MOCK_DB = MagicMock(name='firestore_db')
+
+with patch('firebase_admin.credentials.Certificate'), \
+     patch('firebase_admin.initialize_app'), \
+     patch('firebase_admin.firestore.client', return_value=MOCK_DB):
+    import app as app_module
+
 # app.py'den gerekli fonksiyonları import et
 from app import app as flask_app, hash_password
+
+
+@pytest.fixture(autouse=True)
+def mock_db():
+    """
+    Her testte temiz bir Firestore mock'u.
+
+    Kullanım (Firestore cevabını ayarlamak için):
+        def test_x(client, mock_db):
+            mock_db.collection.return_value.where.return_value.limit.return_value.get.return_value = []
+    """
+    MOCK_DB.reset_mock(return_value=True, side_effect=True)
+    yield MOCK_DB
 
 
 # ============= FLASK FIXTURES =============
