@@ -121,9 +121,11 @@ def validate_password(password: str) -> tuple:
     if len(password) < 6:
         return False, "Şifre en az 6 karakter olmalı"
     
-    if len(password) > 128:
-        return False, "Şifre çok uzun"
-    
+    # bcrypt en fazla 72 byte işler; bcrypt 5.x daha uzun şifrede hata fırlatır.
+    # Türkçe karakterler (ç, ğ, ı, ö, ş, ü) UTF-8'de 2 byte olduğu için karakter değil byte sayılır.
+    if len(password.encode('utf-8')) > 72:
+        return False, "Şifre çok uzun (en fazla 72 byte; Türkçe karakterler 2 byte sayılır)"
+
     return True, "OK"
 
 def validate_message(message: str) -> tuple:

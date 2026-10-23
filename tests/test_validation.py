@@ -23,7 +23,7 @@ import os
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from app import validate_username, validate_password, validate_message
+from app import validate_username, validate_password, validate_message, hash_password, verify_password
 
 
 # ============= USERNAME VALIDATION TESTLERİ =============
@@ -165,7 +165,7 @@ class TestPasswordValidation:
     Şifre doğrulama testleri
     
     KURALLAR:
-    - Minimum 6, maksimum 128 karakter
+    - Minimum 6 karakter, maksimum 72 byte (bcrypt sınırı)
     - Özel karakterler KABUL EDİLİR (güçlü şifre için)
     """
     
@@ -214,17 +214,31 @@ class TestPasswordValidation:
         assert "boş" in msg.lower()
     
     def test_invalid_password_too_long(self):
-        """TEST: Çok uzun şifre (129 karakter)"""
-        valid, msg = validate_password("a" * 129)
+        """TEST: Çok uzun şifre (73 byte)"""
+        valid, msg = validate_password("a" * 73)
         
-        assert valid is False, "129 karakter reject edilmeli"
+        assert valid is False, "73 byte reject edilmeli"
         assert "uzun" in msg.lower()
     
     def test_valid_password_maximum_length(self):
-        """TEST: Maksimum uzunluk (128 karakter)"""
-        valid, msg = validate_password("a" * 128)
+        """TEST: Maksimum uzunluk (72 byte)"""
+        valid, msg = validate_password("a" * 72)
         
-        assert valid is True, "128 karakterlik şifre kabul edilmeli"
+        assert valid is True, "72 byte'lık şifre kabul edilmeli"
+    
+    def test_invalid_password_multibyte_over_limit(self):
+        """TEST: 37 Türkçe karakter = 74 byte, bcrypt sınırını aşar"""
+        valid, msg = validate_password("ş" * 37)
+        
+        assert valid is False, "72 byte'ı aşan Türkçe şifre reject edilmeli"
+    
+    def test_max_length_password_can_be_hashed(self):
+        """TEST: Kabul edilen en uzun şifre bcrypt ile hashlenebilmeli"""
+        password = "ş" * 36  # 72 byte
+        valid, _ = validate_password(password)
+        
+        assert valid is True
+        assert verify_password(password, hash_password(password)) is True
 
 
 # ============= MESSAGE VALIDATION TESTLERİ =============
